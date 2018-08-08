@@ -1,0 +1,5 @@
+target extended-remote /dev/ttyACM0
+file blackmagic
+monitor swdp_scan
+attach 1
+# monitor erase_mass
