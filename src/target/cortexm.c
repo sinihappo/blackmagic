@@ -5,7 +5,8 @@
  * Written by Gareth McMullin <gareth@blacksphere.co.nz>
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under tSchreibe Objekte: 100% (21/21), 3.20 KiB | 3.20 MiB/s, Fertig.
+he terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
@@ -31,6 +32,8 @@
 #include "target.h"
 #include "target_internal.h"
 #include "cortexm.h"
+#include "platform.h"
+#include "command.h"
 
 #include <unistd.h>
 
@@ -239,17 +242,10 @@ static void cortexm_priv_free(void *priv)
 
 static bool cortexm_forced_halt(target *t)
 {
-	uint32_t start_time = platform_time_ms();
+	target_halt_request(t);
 	platform_srst_set_val(false);
-	/* Wait until SRST is released.*/
-	while (platform_time_ms() < start_time + 2000) {
-		if (!platform_srst_get_val())
-			break;
-	}
-	if (platform_srst_get_val())
-		return false;
 	uint32_t dhcsr = 0;
-	start_time = platform_time_ms();
+	uint32_t start_time = platform_time_ms();
 	/* Try hard to halt the target. STM32F7 in  WFI
 	   needs multiple writes!*/
 	while (platform_time_ms() < start_time + cortexm_wait_timeout) {
@@ -264,13 +260,23 @@ static bool cortexm_forced_halt(target *t)
 	return true;
 }
 
-bool cortexm_probe(ADIv5_AP_t *ap)
+bool cortexm_probe(ADIv5_AP_t *ap, bool forced)
 {
 	target *t;
 
 	t = target_new();
+	if (!t) {
+		return false;
+	}
+
 	adiv5_ap_ref(ap);
+	uint32_t identity = ap->idr & 0xff;
 	struct cortexm_priv *priv = calloc(1, sizeof(*priv));
+	if (!priv) {			/* calloc failed: heap exhaustion */
+		DEBUG("calloc: failed in %s\n", __func__);
+		return false;
+	}
+
 	t->priv = priv;
 	t->priv_free = cortexm_priv_free;
 	priv->ap = ap;
@@ -280,6 +286,20 @@ bool cortexm_probe(ADIv5_AP_t *ap)
 	t->mem_write = cortexm_mem_write;
 
 	t->driver = cortexm_driver_str;
+	switch (identity) {
+	case 0x11: /* M3/M4 */
+		t->core = "M3/M4";
+		break;
+	case 0x21: /* M0 */
+		t->core = "M0";
+		break;
+	case 0x31: /* M0+ */
+		t->core = "M0+";
+		break;
+	case 0x01: /* M7 */
+		t->core = "M7";
+		break;
+	}
 
 	t->attach = cortexm_attach;
 	t->detach = cortexm_detach;
@@ -323,18 +343,24 @@ bool cortexm_probe(ADIv5_AP_t *ap)
 		target_check_error(t);
 	}
 
-	if (!cortexm_forced_halt(t))
-		return false;
+	/* Only force halt if read ROM Table failed and there is no DPv2
+	 * targetid!
+	 * So long, only STM32L0 is expected to enter this cause.
+	 */
+	if (forced && !ap->dp->targetid)
+		if (!cortexm_forced_halt(t))
+			return false;
+
 #define PROBE(x) \
 	do { if ((x)(t)) {target_halt_resume(t, 0); return true;} else target_check_error(t); } while (0)
 
 	PROBE(stm32f1_probe);
 	PROBE(stm32f4_probe);
+	PROBE(stm32h7_probe);
 	PROBE(stm32l0_probe);   /* STM32L0xx & STM32L1xx */
 	PROBE(stm32l4_probe);
 	PROBE(lpc11xx_probe);
 	PROBE(lpc15xx_probe);
-	PROBE(lpc17xx_probe);
 	PROBE(lpc43xx_probe);
 	PROBE(sam3x_probe);
 	PROBE(sam4l_probe);
@@ -344,6 +370,8 @@ bool cortexm_probe(ADIv5_AP_t *ap)
 	PROBE(kinetis_probe);
 	PROBE(efm32_probe);
 	PROBE(msp432_probe);
+	PROBE(ke04_probe);
+	PROBE(lpc17xx_probe);
 #undef PROBE
 
 	return true;
@@ -421,8 +449,17 @@ enum { DB_DHCSR, DB_DCRSR, DB_DCRDR, DB_DEMCR };
 
 static void cortexm_regs_read(target *t, void *data)
 {
-	ADIv5_AP_t *ap = cortexm_ap(t);
 	uint32_t *regs = data;
+#if defined(STLINKV2)
+	extern void stlink_regs_read(void *data);
+	extern uint32_t stlink_reg_read(int idx);
+	stlink_regs_read(data);
+	regs += sizeof(regnum_cortex_m);
+	if (t->target_options & TOPT_FLAVOUR_V7MF)
+		for(size_t t = 0; t < sizeof(regnum_cortex_mf) / 4; t++)
+			*regs++ = stlink_reg_read(regnum_cortex_mf[t]);
+#else
+	ADIv5_AP_t *ap = cortexm_ap(t);
 	unsigned i;
 
 	/* FIXME: Describe what's really going on here */
@@ -448,12 +485,25 @@ static void cortexm_regs_read(target *t, void *data)
 			                    regnum_cortex_mf[i]);
 			*regs++ = adiv5_dp_read(ap->dp, ADIV5_AP_DB(DB_DCRDR));
 		}
+#endif
 }
 
 static void cortexm_regs_write(target *t, const void *data)
 {
-	ADIv5_AP_t *ap = cortexm_ap(t);
 	const uint32_t *regs = data;
+#if defined(STLINKV2)
+	extern void stlink_reg_write(int num, uint32_t val);
+	for(size_t z = 1; z < sizeof(regnum_cortex_m) / 4; z++) {
+		stlink_reg_write(regnum_cortex_m[z], *regs);
+		regs++;
+	if (t->target_options & TOPT_FLAVOUR_V7MF)
+		for(size_t z = 0; z < sizeof(regnum_cortex_mf) / 4; z++) {
+			stlink_reg_write(regnum_cortex_mf[z], *regs);
+			regs++;
+		}
+	}
+#else
+	ADIv5_AP_t *ap = cortexm_ap(t);
 	unsigned i;
 
 	/* FIXME: Describe what's really going on here */
@@ -482,6 +532,7 @@ static void cortexm_regs_write(target *t, const void *data)
 			                    ADIV5_AP_DB(DB_DCRSR),
 			                    0x10000 | regnum_cortex_mf[i]);
 		}
+#endif
 }
 
 int cortexm_mem_write_sized(
@@ -533,6 +584,11 @@ static void cortexm_reset(target *t)
 
 	/* Reset DFSR flags */
 	target_mem_write32(t, CORTEXM_DFSR, CORTEXM_DFSR_RESETALL);
+
+	/* 1ms delay to ensure that things such as the stm32f1 HSI clock have started
+	 * up fully.
+	 */
+	platform_delay(1);
 }
 
 static void cortexm_halt_request(target *t)
@@ -867,7 +923,7 @@ static bool cortexm_vector_catch(target *t, int argc, char *argv[])
 	uint32_t tmp = 0;
 	unsigned i;
 
-	if ((argc < 3) || ((argv[1][0] != 'e') && (argv[1][0] != 'd'))) {
+	if (argc < 3) {
 		tc_printf(t, "usage: monitor vector_catch (enable|disable) "
 			     "(hard|int|bus|stat|chk|nocp|mm|reset)\n");
 	} else {
@@ -877,12 +933,16 @@ static bool cortexm_vector_catch(target *t, int argc, char *argv[])
 					tmp |= 1 << i;
 			}
 
-		if (argv[1][0] == 'e')
-			priv->demcr |= tmp;
-		else
-			priv->demcr &= ~tmp;
+		bool enable;
+		if (parse_enable_or_disable(argv[1], &enable)) {
+			if (enable) {
+				priv->demcr |= tmp;
+			} else {
+				priv->demcr &= ~tmp;
+			}
 
-		target_mem_write32(t, CORTEXM_DEMCR, priv->demcr);
+			target_mem_write32(t, CORTEXM_DEMCR, priv->demcr);
+		}
 	}
 
 	tc_printf(t, "Catching vectors: ");
@@ -1023,4 +1083,3 @@ static int cortexm_hostio_request(target *t)
 
 	return t->tc->interrupted;
 }
-

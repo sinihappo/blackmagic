@@ -108,12 +108,14 @@ struct target_s {
 	/* target-defined options */
 	unsigned target_options;
 	uint32_t idcode;
+	uint32_t target_storage;
 
 	struct target_ram *ram;
 	struct target_flash *flash;
 
 	/* Other stuff */
 	const char *driver;
+	const char *core;
 	struct target_command_s *commands;
 
 	struct target_s *next;
@@ -161,6 +163,7 @@ int tc_system(target *t, target_addr cmd, size_t cmdlen);
  */
 bool stm32f1_probe(target *t);
 bool stm32f4_probe(target *t);
+bool stm32h7_probe(target *t);
 bool stm32l0_probe(target *t);
 bool stm32l1_probe(target *t);
 bool stm32l4_probe(target *t);
@@ -176,5 +179,5 @@ bool samd_probe(target *t);
 bool kinetis_probe(target *t);
 bool efm32_probe(target *t);
 bool msp432_probe(target *t);
-
+bool ke04_probe(target *t);
 #endif
