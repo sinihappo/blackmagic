@@ -23,6 +23,9 @@
 #include "general.h"
 #include "swdptap.h"
 
+#define SWD_XDELAY 0
+#define SWD_XDELAY2 0
+
 volatile int	swd_counter;
 #ifdef SWD_XDELAY
 void swd_xdelay(void)
@@ -30,8 +33,14 @@ void swd_xdelay(void)
     for (swd_counter = 0; swd_counter < SWD_XDELAY; swd_counter++)
         ;
 }
+void swd_xdelay2(void)
+{
+    for (swd_counter = 0; swd_counter < SWD_XDELAY2; swd_counter++)
+        ;
+}
 #else
 #define swd_xdelay()
+#define swd_xdelay2()
 #endif
 
 enum {
@@ -56,16 +65,22 @@ static void swdptap_turnaround(int dir)
 	DEBUG("%s", dir ? "\n-> ":"\n<- ");
 #endif
 
-	if(dir == SWDIO_STATUS_FLOAT)
-		SWDIO_MODE_FLOAT();
+	if(dir == SWDIO_STATUS_FLOAT) {
+            gpio_set(SWDDIR_PORT, SWDDIR_PIN);
+            SWDIO_MODE_FLOAT_Z();
+        }
 	gpio_set(SWCLK_PORT, SWCLK_PIN);
 	gpio_set(SWCLK_PORT, SWCLK_PIN);
         swd_xdelay();
 	gpio_clear(SWCLK_PORT, SWCLK_PIN);
         swd_xdelay();
-	if(dir == SWDIO_STATUS_DRIVE)
-		SWDIO_MODE_DRIVE();
-        swd_xdelay();
+	if(dir == SWDIO_STATUS_DRIVE) {
+            gpio_clear(SWDDIR_PORT, SWDDIR_PIN);
+#if 0
+            SWDIO_MODE_DRIVE();
+#endif
+        }
+        swd_xdelay2();
 }
 
 bool swdptap_bit_in(void)
@@ -162,7 +177,7 @@ void swdptap_bit_out(bool val)
 
 	swdptap_turnaround(SWDIO_STATUS_DRIVE);
 
-	gpio_set_val(SWDIO_PORT, SWDIO_PIN, val);
+	gpio_set_val(SWDOUT_PORT, SWDOUT_PIN, val);
         swd_xdelay();
 	gpio_clear(SWCLK_PORT, SWCLK_PIN);
         swd_xdelay();
@@ -182,7 +197,7 @@ swdptap_seq_out(uint32_t MS, int ticks)
 #endif
 	swdptap_turnaround(SWDIO_STATUS_DRIVE);
 	while (ticks--) {
-		gpio_set_val(SWDIO_PORT, SWDIO_PIN, data);
+		gpio_set_val(SWDOUT_PORT, SWDOUT_PIN, data);
                 swd_xdelay();
 		MS >>= 1;
 		data = MS & 1;
@@ -206,7 +221,7 @@ swdptap_seq_out_parity(uint32_t MS, int ticks)
 	swdptap_turnaround(SWDIO_STATUS_DRIVE);
 
 	while (ticks--) {
-		gpio_set_val(SWDIO_PORT, SWDIO_PIN, data);
+		gpio_set_val(SWDOUT_PORT, SWDOUT_PIN, data);
                 swd_xdelay();
 		parity ^= MS;
 		MS >>= 1;
@@ -216,7 +231,7 @@ swdptap_seq_out_parity(uint32_t MS, int ticks)
 		gpio_clear(SWCLK_PORT, SWCLK_PIN);
 	}
         swd_xdelay();
-	gpio_set_val(SWDIO_PORT, SWDIO_PIN, parity & 1);
+	gpio_set_val(SWDOUT_PORT, SWDOUT_PIN, parity & 1);
         swd_xdelay();
 	gpio_clear(SWCLK_PORT, SWCLK_PIN);
         swd_xdelay();
