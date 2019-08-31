@@ -46,27 +46,30 @@
 
 /* Hardware definitions... */
 #define TDI_PORT	GPIOA
-#define TMS_PORT	GPIOB
-#define TCK_PORT	GPIOA
-#define TDO_PORT	GPIOA
 #define TDI_PIN		GPIO7
-#define TMS_PIN		GPIO14
-#define TCK_PIN		GPIO5
+#define TMS_PORT	GPIOA   /* SWDIO */
+#define TMS_PIN		GPIO4   /* SWDIO */
+#define TCK_PORT	GPIOA   /* SWCLK */
+#define TCK_PIN		GPIO5   /* SWCLK */
+#define TDO_PORT	GPIOA
 #define TDO_PIN		GPIO6
 
 #define SWDIO_PORT 	TMS_PORT
-#define SWCLK_PORT 	TCK_PORT
 #define SWDIO_PIN	TMS_PIN
+#define SWCLK_PORT 	TCK_PORT
 #define SWCLK_PIN	TCK_PIN
+#define SWDIR_PORT 	GPIOA
+#define SWDIR_PIN	GPIO6
 
 #define SRST_PORT	GPIOB
 #define SRST_PIN_V1	GPIO1
 #define SRST_PIN_V2	GPIO0
 
-#define LED_PORT	GPIOA
+#define LED_PORT	GPIOC
+#define LED_PIN		GPIO13
 /* Use PC14 for a "dummy" uart led. So we can observere at least with scope*/
 #define LED_PORT_UART	GPIOC
-#define LED_UART	GPIO14
+#define LED_UART	GPIO12
 
 #define PLATFORM_HAS_TRACESWO	1
 #define NUM_TRACE_PACKETS		(128)		/* This is an 8K buffer */

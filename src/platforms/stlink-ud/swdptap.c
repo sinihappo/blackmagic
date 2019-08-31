@@ -31,9 +31,7 @@ void swd_xdelay(void)
         ;
 }
 #else
-static inline void swd_xdelay(void)
-{
-}
+#define swd_xdelay()
 #endif
 
 enum {

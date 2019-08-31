@@ -54,6 +54,9 @@ void platform_init(void)
 	initialise_monitor_handles();
 #endif
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
+#if 1
+        led_idle_run = LED_PIN;
+#else
 	if (rev == 0) {
 		led_idle_run = GPIO8;
 		srst_pin = SRST_PIN_V1;
@@ -61,6 +64,7 @@ void platform_init(void)
 		led_idle_run = GPIO9;
 		srst_pin = SRST_PIN_V2;
 	}
+#endif
 	/* Setup GPIO ports */
 	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ,
 	              GPIO_CNF_INPUT_FLOAT, TMS_PIN);
