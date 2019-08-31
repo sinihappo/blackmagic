@@ -54,7 +54,7 @@ void platform_init(void)
 	initialise_monitor_handles();
 #endif
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
-#if 1
+#if 0
         led_idle_run = LED_PIN;
 #else
 	if (rev == 0) {
@@ -72,6 +72,10 @@ void platform_init(void)
 	              GPIO_CNF_OUTPUT_PUSHPULL, TCK_PIN);
 	gpio_set_mode(TDI_PORT, GPIO_MODE_OUTPUT_50_MHZ,
 	              GPIO_CNF_OUTPUT_PUSHPULL, TDI_PIN);
+	gpio_set_mode(SWDDIR_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+	              GPIO_CNF_OUTPUT_PUSHPULL, SWDDIR_PIN);
+	gpio_set_mode(SWDOUT_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+	              GPIO_CNF_OUTPUT_PUSHPULL, SWDOUT_PIN);
 
 	platform_srst_set_val(false);
 
