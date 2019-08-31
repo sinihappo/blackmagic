@@ -90,13 +90,13 @@
 	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ,  \
 	              GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN); \
     } while (0)
-#define SWDIO_MODE_FLOAT() 	do { \
+#define SWDIO_MODE_FLOAT_Z() 	do { \
 	uint32_t cr = SWD_CR; \
 	cr  &= ~(0xf * SWD_CR_MULT); \
 	cr  |=  (0x4 * SWD_CR_MULT); \
 	SWD_CR = cr; \
 } while(0)
-#define SWDIO_MODE_DRIVE() 	do { \
+#define SWDIO_MODE_DRIVE_Z() 	do { \
 	uint32_t cr = SWD_CR; \
 	cr  &= ~(0xf * SWD_CR_MULT); \
 	cr  |=  (0x1 * SWD_CR_MULT); \
