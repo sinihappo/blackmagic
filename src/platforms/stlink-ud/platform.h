@@ -58,18 +58,26 @@
 #define SWDIO_PIN	TMS_PIN
 #define SWCLK_PORT 	TCK_PORT
 #define SWCLK_PIN	TCK_PIN
-#define SWDIR_PORT 	GPIOA
-#define SWDIR_PIN	GPIO6
+#define SWDDIR_PORT 	GPIOA
+#define SWDDIR_PIN	GPIO6
+#define SWDOUT_PORT 	GPIOA
+#define SWDOUT_PIN	GPIO7
+
+/*
+  SWDIN		GPIOA 4
+  SWDCLK	GPIOA 5
+  SWDDIR	GPIOA 6
+  SWDOUT	GPIOA 7
+ */
 
 #define SRST_PORT	GPIOB
 #define SRST_PIN_V1	GPIO1
 #define SRST_PIN_V2	GPIO0
 
-#define LED_PORT	GPIOC
-#define LED_PIN		GPIO13
+#define LED_PORT	GPIOA
 /* Use PC14 for a "dummy" uart led. So we can observere at least with scope*/
 #define LED_PORT_UART	GPIOC
-#define LED_UART	GPIO12
+#define LED_UART	GPIO14
 
 #define PLATFORM_HAS_TRACESWO	1
 #define NUM_TRACE_PACKETS		(128)		/* This is an 8K buffer */
@@ -78,8 +86,10 @@
 # define SWD_CR_MULT (1 << ((14 - 8) << 2))
 
 #define TMS_SET_MODE() \
-	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ, \
-	              GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN);
+    do { \
+	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ,  \
+	              GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN); \
+    } while (0)
 #define SWDIO_MODE_FLOAT() 	do { \
 	uint32_t cr = SWD_CR; \
 	cr  &= ~(0xf * SWD_CR_MULT); \
