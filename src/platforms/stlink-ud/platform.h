@@ -65,9 +65,16 @@
 
 /*
   SWDIN		GPIOA 4
+  SWDIO input pin
+
   SWDCLK	GPIOA 5
+
   SWDDIR	GPIOA 6
+  SWDIO direction 0: out
+                  1: in
+
   SWDOUT	GPIOA 7
+  SWDIO output
  */
 
 #define SRST_PORT	GPIOB
